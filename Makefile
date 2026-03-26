@@ -1,4 +1,4 @@
-KEYBOARD  = moonlander
+KEYBOARD  = zsa/moonlander
 KEYMAP    = custom
 QMK_HOME ?= $(HOME)/qmk_firmware
 KEYMAP_DIR = $(QMK_HOME)/keyboards/$(KEYBOARD)/keymaps/$(KEYMAP)
