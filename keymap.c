@@ -31,8 +31,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,    KC_LBRC,    KC_RBRC, KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_BSLS,
         CTL_ESC, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_LCBR,    KC_RCBR, KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_QUOT,
         KC_LSFT, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,                         KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH, KC_RSFT,
-        KC_LCTL, KC_LALT, KC_LGUI, MO(NUM), MO(SYM),          KC_SPC,     KC_ENT,           MO(NAV), MO(NUM), KC_RGUI, KC_RALT, KC_RCTL,
-                                            KC_BSPC, KC_LSFT, KC_DEL,     KC_ESC,  KC_RSFT, KC_TAB
+        KC_LCTL, KC_LALT, KC_LGUI, MO(NUM), MO(SYM),          KC_NO,      KC_NO,            MO(NAV), MO(NUM), KC_RGUI, KC_RALT, KC_RCTL,
+                                            KC_SPC,  KC_BSPC, KC_DEL,     KC_ENT,  KC_RSFT, KC_TAB
     ),
 
     /* ┌───────────────────────────────────────────────────────────────────────────────┐
@@ -102,3 +102,87 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
 };
 // clang-format on
+
+// ---------------------------------------------------------------------------
+//  Per-key RGB: light up active keys by category, turn off transparent ones
+// ---------------------------------------------------------------------------
+#ifdef RGB_MATRIX_ENABLE
+
+// Palette (R, G, B)
+#define C_OFF        0,   0,   0
+#define C_RED      255,   0,   0    // boot / danger
+#define C_ORANGE   255, 140,   0    // misc active symbols
+#define C_GREEN      0, 220, 100    // nav arrows, numbers
+#define C_CYAN       0, 180, 180    // operators
+#define C_BLUE      60,  60, 255    // modifiers
+#define C_DIMBLUE   60,  60, 140    // F-keys
+#define C_PURPLE   140,   0, 255    // brackets
+
+static bool is_bracket(uint16_t kc) {
+    switch (kc) {
+        case KC_LPRN: case KC_RPRN:
+        case KC_LBRC: case KC_RBRC:
+        case KC_LCBR: case KC_RCBR:
+        case KC_LABK: case KC_RABK:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool is_nav(uint16_t kc) {
+    switch (kc) {
+        case KC_LEFT: case KC_DOWN: case KC_UP: case KC_RGHT:
+        case KC_HOME: case KC_END:  case KC_PGUP: case KC_PGDN:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool is_operator(uint16_t kc) {
+    switch (kc) {
+        case KC_PLUS: case KC_MINS: case KC_ASTR: case KC_SLSH:
+        case KC_EQL:  case KC_UNDS: case KC_PIPE: case KC_BSLS:
+        case KC_AMPR: case KC_CIRC: case KC_TILD: case KC_GRV:
+        case KC_EXLM: case KC_AT:   case KC_HASH: case KC_DLR:
+        case KC_PERC: case KC_QUES:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
+    uint8_t layer = get_highest_layer(layer_state);
+    if (layer == BASE) return false; // default animation on base
+
+    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+            uint8_t idx = g_led_config.matrix_co[row][col];
+            if (idx == NO_LED || idx < led_min || idx >= led_max) continue;
+
+            uint16_t kc = keymaps[layer][row][col];
+
+            // Inactive keys → off
+            if (kc == KC_TRNS || kc == KC_NO) {
+                rgb_matrix_set_color(idx, C_OFF);
+                continue;
+            }
+
+            // Classify active keys
+            if (kc == QK_BOOT)                         rgb_matrix_set_color(idx, C_RED);
+            else if (kc >= KC_LCTL && kc <= KC_RGUI)   rgb_matrix_set_color(idx, C_BLUE);
+            else if (kc >= KC_F1 && kc <= KC_F24)      rgb_matrix_set_color(idx, C_DIMBLUE);
+            else if (is_nav(kc))                        rgb_matrix_set_color(idx, C_GREEN);
+            else if (kc >= KC_1 && kc <= KC_0)          rgb_matrix_set_color(idx, C_GREEN);
+            else if (kc == KC_DOT)                      rgb_matrix_set_color(idx, C_GREEN);
+            else if (is_bracket(kc))                    rgb_matrix_set_color(idx, C_PURPLE);
+            else if (is_operator(kc))                   rgb_matrix_set_color(idx, C_CYAN);
+            else                                        rgb_matrix_set_color(idx, C_ORANGE);
+        }
+    }
+    return false;
+}
+
+#endif
